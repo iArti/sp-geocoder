@@ -1,7 +1,7 @@
 console.log("✅ Скрипт script.js успешно загружен и готов к работе.");
 
 // !!! ВАЖНО: Убедитесь, что здесь ваша реальная часть ключа !!!
-const API_KEY_PREFIX = "335c8ef1-a3dc-4c07-b1c7-64d4b431e";
+const API_KEY_PREFIX = "ВАША_ОСНОВНАЯ_ЧАСТЬ_КЛЮЧА_БЕЗ_ПОСЛЕДНИХ_3_СИМВОЛОВ";
 
 // Находим элементы на странице
 const apiKeySuffixInput = document.getElementById('apiKeySuffix');
@@ -18,15 +18,13 @@ processButton.addEventListener('click', async () => {
         const mode = document.querySelector('input[name="mode"]:checked').value;
         const apiKeySuffix = apiKeySuffixInput.value.trim();
         const addressColumn = addressColumnInput.value.trim();
-        const labelColumn = labelColumnInput.value.trim();
+        const labelColumn = labelColumnInput.value.trim(); // В режиме Google это поле не используется, но мы его оставляем
         const file = fileInput.files[0];
 
         if (apiKeySuffix.length !== 3) {
             alert('Пожалуйста, введите ровно 3 последних символа API-ключа Яндекса.');
             return;
         }
-        
-        // Ключ Яндекса собирается и используется в ЛЮБОМ режиме.
         const fullApiKey = API_KEY_PREFIX + apiKeySuffix; 
 
         if (!addressColumn || !file) {
@@ -48,25 +46,32 @@ processButton.addEventListener('click', async () => {
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             const address = row[addressColumn];
-            const label = labelColumn ? (row[labelColumn] || '') : '';
             
             statusDiv.textContent = `Обработка: ${i + 1} / ${rows.length}...`;
 
             let coords = { lat: 'НЕ НАЙДЕНО', lon: 'НЕ НАЙДЕНО' };
             if (address) {
-                // ВЫЗОВ ГЕОКОДЕРА ЯНДЕКСА ПРОИСХОДИТ ЗДЕСЬ, НЕЗАВИСИМО ОТ РЕЖИМА
                 coords = await getCoordinates(address, fullApiKey);
             }
 
-            // А ЗДЕСЬ МЫ ТОЛЬКО ФОРМАТИРУЕМ УЖЕ ПОЛУЧЕННЫЙ РЕЗУЛЬТАТ
+            // ===== ГЛАВНОЕ ИЗМЕНЕНИЕ: НОВАЯ ЛОГИКА ДЛЯ РЕЖИМА GOOGLE =====
             if (mode === 'google') {
-                results.push({
-                    'Latitude': coords.lat,       // Широта с понятным для Google названием
-                    'Longitude': coords.lon,      // Долгота с понятным для Google названием
-                    'Name': label || address,     // Название метки
-                    'Description': address        // Описание метки
-                });
-            } else { // Режим 'yandex'
+                // Создаем полную копию исходной строки
+                const newRow = { ...row }; 
+                
+                // Формируем строку координат "широта,долгота"
+                const coordinateString = (coords.lat === 'НЕ НАЙДЕНО' || coords.lat === 'ОШИБКА API')
+                    ? coords.lat // Если не нашли, оставляем текстовую ошибку
+                    : `${coords.lat},${coords.lon}`;
+
+                // В скопированной строке заменяем значение в адресном столбце на координаты
+                newRow[addressColumn] = coordinateString;
+
+                // Добавляем измененную строку в результаты
+                results.push(newRow);
+
+            } else { // Режим 'yandex' (логика осталась прежней)
+                const label = labelColumn ? (row[labelColumn] || '') : '';
                 results.push({
                     'Широта': coords.lat,
                     'Долгота': coords.lon,
@@ -75,6 +80,7 @@ processButton.addEventListener('click', async () => {
                     'Номер': i + 1
                 });
             }
+            // ======================================================================
             
             await new Promise(resolve => setTimeout(resolve, 200));
         }
@@ -83,7 +89,7 @@ processButton.addEventListener('click', async () => {
         const newWorksheet = XLSX.utils.json_to_sheet(results);
         const newWorkbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Координаты');
-        const fileName = mode === 'google' ? 'для_google_maps.xlsx' : 'для_яндекс_карт.xlsx';
+        const fileName = mode === 'google' ? 'модифицированный_для_google.xlsx' : 'для_яндекс_карт.xlsx';
         XLSX.writeFile(newWorkbook, fileName);
         
         statusDiv.textContent = 'Готово! Файл скачан.';
@@ -95,7 +101,8 @@ processButton.addEventListener('click', async () => {
     }
 });
 
-// Эта функция — "мозг". Она всегда обращается к Яндексу.
+
+// Функция getCoordinates остается без изменений
 async function getCoordinates(address, apiKey) {
     const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&format=json&geocode=${encodeURIComponent(address)}`;
     try {
