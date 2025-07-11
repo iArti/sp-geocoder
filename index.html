@@ -5,28 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Геокодер XLSX</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Подключаем библиотеку для работы с XLSX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>Конвертер адресов в координаты</h1>
-        <p>Загрузите XLSX-файл, укажите столбец с адресами и получите файл с координатами для Яндекс.Карт.</p>
+        <p>Загрузите XLSX-файл, укажите столбцы и получите файл с координатами для Яндекс.Карт.</p>
         
         <div class="card">
+            <!-- ===== ИЗМЕНЕННЫЙ БЛОК ДЛЯ КЛЮЧА ===== -->
             <div class="form-group">
-                <label for="apiKey">1. Вставьте ваш API-ключ от Яндекс.Геокодера:</label>
-                <input type="password" id="apiKey" placeholder="Ваш API-ключ...">
-                <small>Ключ нужен для работы и никуда не сохраняется. <a href="https://developer.tech.yandex.ru/keys/" target="_blank">Получить ключ</a></small>
+                <label for="apiKeySuffix">1. Введите последние 3 символа вашего API-ключа:</label>
+                <input type="password" id="apiKeySuffix" placeholder="...abc" maxlength="3" style="width: 100px;">
+                <small>Основная часть ключа уже встроена в сервис.</small>
+            </div>
+            <!-- ======================================= -->
+
+            <div class="form-group">
+                <label for="addressColumn">2. Укажите столбец с адресами (название или номер):</label>
+                <input type="text" id="addressColumn" value="Адрес" placeholder="Например, 'Адрес' или 'C'">
             </div>
 
             <div class="form-group">
-                <label for="addressColumn">2. Укажите название или номер столбца с адресами (например, "Адрес" или "C"):</label>
-                <input type="text" id="addressColumn" value="Адрес" placeholder="Название или номер столбца">
+                <label for="labelColumn">3. Укажите столбец для названия метки (необязательно):</label>
+                <input type="text" id="labelColumn" placeholder="Например, 'Название организации'">
+                <small>Этот текст будет отображаться как подпись к метке на карте.</small>
             </div>
 
             <div class="form-group">
-                <label for="fileInput">3. Выберите XLSX-файл:</label>
+                <label for="fileInput">4. Выберите XLSX-файл:</label>
                 <input type="file" id="fileInput" accept=".xlsx, .xls">
             </div>
 

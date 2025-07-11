@@ -1,21 +1,32 @@
+// !!! ВАЖНО: Замените эту строку на вашу часть ключа !!!
+// Пример: если ваш ключ abcdef-1234-5678-90ab-cdefghijklMNO,
+// то сюда нужно вставить "abcdef-1234-5678-90ab-cdefghijkl"
+const API_KEY_PREFIX = "335c8ef1-a3dc-4c07-b1c7-64d4b431e";
+
 // Находим элементы на странице
-const apiKeyInput = document.getElementById('apiKey');
+const apiKeySuffixInput = document.getElementById('apiKeySuffix'); // Обновленный ID
 const addressColumnInput = document.getElementById('addressColumn');
+const labelColumnInput = document.getElementById('labelColumn');
 const fileInput = document.getElementById('fileInput');
 const processButton = document.getElementById('processButton');
 const statusDiv = document.getElementById('status');
 
 // Основной обработчик нажатия на кнопку
 processButton.addEventListener('click', async () => {
-    // 1. Проверки
-    const apiKey = apiKeyInput.value.trim();
-    const addressColumn = addressColumnInput.value.trim();
-    const file = fileInput.files[0];
-
-    if (!apiKey) {
-        alert('Пожалуйста, введите API-ключ.');
+    // 1. Сборка ключа и проверки
+    const apiKeySuffix = apiKeySuffixInput.value.trim();
+    
+    if (apiKeySuffix.length !== 3) {
+        alert('Пожалуйста, введите ровно 3 последних символа вашего API-ключа.');
         return;
     }
+
+    const fullApiKey = API_KEY_PREFIX + apiKeySuffix; // <-- Склеиваем ключ
+
+    const addressColumn = addressColumnInput.value.trim();
+    const labelColumn = labelColumnInput.value.trim();
+    const file = fileInput.files[0];
+
     if (!addressColumn) {
         alert('Пожалуйста, укажите столбец с адресами.');
         return;
@@ -30,7 +41,6 @@ processButton.addEventListener('click', async () => {
     statusDiv.textContent = 'Читаем файл...';
 
     try {
-        // 2. Чтение XLSX файла
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -42,40 +52,40 @@ processButton.addEventListener('click', async () => {
         
         statusDiv.textContent = `Найдено ${rows.length} адресов. Начинаем геокодирование...`;
 
-        // 3. Геокодирование каждого адреса
         const results = [];
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             const address = row[addressColumn];
+            const label = labelColumn ? (row[labelColumn] || '') : '';
             
             statusDiv.textContent = `Обработка: ${i + 1} / ${rows.length} (${address})`;
 
             if (!address) {
                 console.warn(`Пустой адрес в строке ${i + 2}`);
-                continue; // Пропускаем строки без адреса
+                results.push({
+                    'Широта': 'АДРЕС НЕ УКАЗАН', 'Долгота': '', 'Описание': '', 'Подпись': label, 'Номер': i + 1
+                });
+                continue;
             }
 
-            const coords = await getCoordinates(address, apiKey);
+            // Передаем в функцию уже полный ключ
+            const coords = await getCoordinates(address, fullApiKey);
 
             results.push({
                 'Широта': coords.lat,
-                'Долгота': formatCoordinate(coords.lon), // Форматируем отрицательные значения
-                'Описание': address, // В описание добавим исходный адрес
-                'Подпись': '',
+                'Долгота': coords.lon,
+                'Описание': address,
+                'Подпись': label,
                 'Номер': i + 1
             });
             
-            // Маленькая пауза, чтобы не превысить лимиты API (например, 5 запросов в секунду)
             await new Promise(resolve => setTimeout(resolve, 200)); 
         }
 
-        // 4. Создание нового XLSX файла
         statusDiv.textContent = 'Формируем итоговый файл...';
         const newWorksheet = XLSX.utils.json_to_sheet(results);
         const newWorkbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Координаты');
-
-        // Скачиваем файл
         XLSX.writeFile(newWorkbook, 'результат_с_координатами.xlsx');
         
         statusDiv.textContent = 'Готово! Файл скачан.';
@@ -88,7 +98,7 @@ processButton.addEventListener('click', async () => {
     }
 });
 
-// Функция для получения координат через Яндекс.Геокодер
+// Функция для получения координат. Она принимает уже полный ключ.
 async function getCoordinates(address, apiKey) {
     const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&format=json&geocode=${encodeURIComponent(address)}`;
     
@@ -108,19 +118,4 @@ async function getCoordinates(address, apiKey) {
         console.error(`Ошибка при запросе к API для адреса: ${address}`, e);
         return { lat: 'ОШИБКА API', lon: 'ОШИБКА API' };
     }
-}
-
-// Функция для добавления апострофа к отрицательным координатам
-function formatCoordinate(coordString) {
-    if (typeof coordString === 'string' && coordString.startsWith('-')) {
-        // В XLSX.js не нужно добавлять апостроф явно, библиотека сама обработает это.
-        // Но если бы мы генерировали CSV, это было бы нужно.
-        // Для XLSX лучше просто вернуть как есть.
-        return coordString;
-    }
-    // Если нужно строго следовать инструкции, то можно сделать так:
-    // return coordString.startsWith('-') ? `'${coordString}` : coordString;
-    // Но библиотека xlsx умнее и сама может задать тип ячейки как "текст".
-    // Давайте вернем как есть, это более чистое решение.
-    return coordString;
 }
