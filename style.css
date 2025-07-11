@@ -67,3 +67,27 @@ button:disabled {
     min-height: 24px;
     font-weight: 500;
 }
+/* Добавьте это в конец вашего файла style.css */
+.radio-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.radio-group input[type="radio"] {
+    display: none; /* Скрываем стандартный кружок */
+}
+.radio-group label {
+    display: inline-block;
+    cursor: pointer;
+    padding: 8px 15px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    margin-bottom: 0; /* Убираем лишний отступ у label внутри группы */
+}
+/* Стиль для выбранной опции */
+.radio-group input[type="radio"]:checked + label {
+    background-color: #3498db;
+    color: white;
+    border-color: #3498db;
+}
